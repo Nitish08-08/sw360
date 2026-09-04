@@ -4,14 +4,22 @@
 
 set -o errexit -o nounset -o pipefail
 
+# Load Docker secrets in a CRLF-safe way: secrets files checked out with
+# Windows line endings would otherwise leave a trailing carriage return
+# in sourced values (e.g. COUCHDB_PASSWORD="sw360fossie\r"), which CouchDB
+# rejects with "Name or password is incorrect" and eventually locks the
+# account for (see eclipse-sw360/sw360#4558).
+load_secrets_file() {
+  if [ -f "$1" ]; then
+    # shellcheck disable=SC1090
+    source <(tr -d '\r' < "$1")
+  fi
+}
+
 # Export sourced secrets so envsubst can see them when generating configs.
 set -o allexport
-if [ -f "/run/secrets/COUCHDB_SECRETS" ]; then
-  source /run/secrets/COUCHDB_SECRETS
-fi
-if [ -f "/run/secrets/SW360_SECRETS" ]; then
-  source /run/secrets/SW360_SECRETS
-fi
+load_secrets_file "/run/secrets/COUCHDB_SECRETS"
+load_secrets_file "/run/secrets/SW360_SECRETS"
 set +o allexport
 
 mkdir -p /etc/sw360/authorization /etc/sw360/rest
