@@ -111,6 +111,7 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -2328,5 +2329,36 @@ public class ReleaseController implements RepresentationModelProcessor<Repositor
         log.info("Invalidating release caches. Reason: {}", reason);
         cacheManager.invalidate(CachedEndpoint.RELEASES_ALL_DETAILS);
         cacheManager.invalidate(CachedEndpoint.RELEASES_WITHOUT_DETAILS);
+    }
+
+    @Operation(
+            summary = "Get FOSSology processing information for a release.",
+            description = "Returns the FOSSology workflow status for a release, covering all three steps, " +
+                    "upload, scan, and report; and the SW360 attachment ID of any downloaded report.",
+            tags = {"Releases"},
+            responses = {
+                    @ApiResponse(
+                            responseCode = "200",
+                            description = "FOSSology information retrieved successfully",
+                            content = @Content(mediaType = "application/json",
+                                    schema = @Schema(implementation = FossologyReleaseInfo.class))
+                    ),
+                    @ApiResponse(
+                            responseCode = "404",
+                            description = "Release not found"
+                    )
+            }
+    )
+    @GetMapping(value = RELEASES_URL + "/{id}/fossology")
+    public ResponseEntity<FossologyReleaseInfo> getFossologyInfo(
+            @Parameter(description = "The ID of the release.")
+            @PathVariable("id") String releaseId
+    ) throws TException {
+
+        User user = restControllerHelper.getSw360UserFromAuthentication();
+        restControllerHelper.throwIfSecurityUser(user);
+        Release release = releaseService.getReleaseForUserById(releaseId, user);
+
+        return ResponseEntity.ok(releaseService.buildFossologyReleaseInfo(release));
     }
 }
